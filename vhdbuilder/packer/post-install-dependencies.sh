@@ -69,6 +69,24 @@ usage=${usage%.*}
 [ ${usage} -ge 99 ] && echo "ERROR: root partition on OS device (${os_device}) already passed 99% of the 30GB cap!" && exit 1
 [ ${usage} -ge 75 ] && echo "WARNING: root partition on OS device (${os_device}) already passed 75% of the 30GB cap!"
 
+if isFedora $OS; then
+  cat >/etc/os-release <<'EOF'
+NAME="Microsoft Azure Linux"
+VERSION="3.0.20251211.43"
+ID=azurelinux
+VERSION_ID="3.0"
+PRETTY_NAME="Microsoft Azure Linux 3.0"
+ANSI_COLOR="1;34"
+HOME_URL="https://aka.ms/azurelinux"
+BUG_REPORT_URL="https://aka.ms/azurelinux"
+SUPPORT_URL="https://aka.ms/azurelinux"
+EOF
+
+  for release_file in /etc/fedora-release /etc/system-release /etc/azurelinux-release; do
+    echo "Azure Linux 3.0" > "$release_file"
+  done
+fi
+
 echo -e "=== os-release Begin" >> ${VHD_LOGS_FILEPATH}
 cat /etc/os-release >> ${VHD_LOGS_FILEPATH}
 echo -e "=== os-release End" >> ${VHD_LOGS_FILEPATH}

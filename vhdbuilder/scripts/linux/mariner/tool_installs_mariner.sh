@@ -6,8 +6,10 @@ installBcc() {
     echo "Installing BCC tools..."
     dnf_makecache || exit $ERR_APT_UPDATE_TIMEOUT
     dnf_install 120 5 25 bcc-tools || exit $ERR_BCC_INSTALL_TIMEOUT
+    if ! isFedora "$OS"; then
     echo "Installing BCC examples..."
-    dnf_install 120 5 25 bcc-examples || exit $ERR_BCC_INSTALL_TIMEOUT
+        dnf_install 120 5 25 bcc-examples || exit $ERR_BCC_INSTALL_TIMEOUT
+    fi
 }
 
 installBpftrace() {
@@ -93,19 +95,38 @@ listInstalledPackages() {
 
 # disable and mask all UU timers/services
 disableDNFAutomatic() {
-    # Ensure the automatic notifyonly timer is disabled.
-    systemctl stop dnf-automatic-notifyonly.timer || exit 1
-    systemctl disable dnf-automatic-notifyonly.timer || exit 1
-    systemctl mask dnf-automatic-notifyonly.timer || exit 1
+    if ! isFedora "$OS"; then
+        # Ensure the automatic notifyonly timer is disabled.
+        systemctl stop dnf-automatic-notifyonly.timer || exit 1
+        systemctl disable dnf-automatic-notifyonly.timer || exit 1
+        systemctl mask dnf-automatic-notifyonly.timer || exit 1
 
-    # Ensure the automatic install timer is disabled.
-    # systemctlDisableAndStop adds .service to the end which doesn't work on timers.
-    systemctl disable dnf-automatic-install.service || exit 1
-    systemctl mask dnf-automatic-install.service || exit 1
+        # Ensure the automatic install timer is disabled.
+        # systemctlDisableAndStop adds .service to the end which doesn't work on timers.
+        systemctl disable dnf-automatic-install.service || exit 1
+        systemctl mask dnf-automatic-install.service || exit 1
 
-    systemctl stop dnf-automatic-install.timer || exit 1
-    systemctl disable dnf-automatic-install.timer || exit 1
-    systemctl mask dnf-automatic-install.timer || exit 1
+        systemctl stop dnf-automatic-install.timer || exit 1
+        systemctl disable dnf-automatic-install.timer || exit 1
+        systemctl mask dnf-automatic-install.timer || exit 1
+    else
+        # No notify-only service/timer is available on Fedora.
+
+        # Disable dnf-automatic on Fedora.
+        systemctl disable dnf-automatic.service || exit 1
+        systemctl mask dnf-automatic.service || exit 1
+
+        systemctl disable dnf5-automatic.service || exit 1
+        systemctl mask dnf5-automatic.service || exit 1
+
+        systemctl stop dnf-automatic.timer || exit 1
+        systemctl disable dnf-automatic.timer || exit 1
+        systemctl mask dnf-automatic.timer || exit 1
+
+        systemctl stop dnf5-automatic.timer || exit 1
+        systemctl disable dnf5-automatic.timer || exit 1
+        systemctl mask dnf5-automatic.timer || exit 1
+    fi
 }
 
 disableTimesyncd() {

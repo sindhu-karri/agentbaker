@@ -21,22 +21,46 @@ installDeps() {
     # Install the package repo for the specific OS version.
     # AzureLinux 3.0 uses the azurelinux-repos-cloud-native repo
     # Other OS, e.g., Mariner 2.0 uses the mariner-repos-cloud-native repo
-    if [ "$OS_VERSION" = "3.0" ]; then
-      echo "Installing azurelinux-repos-cloud-native"
-      dnf_install 30 1 600 azurelinux-repos-cloud-native
-      dnf_install 30 1 600 azurelinux-repos-cloud-native-preview
+    if ! isFedora "$OS"; then
+      if [ "$OS_VERSION" = "3.0" ]; then
+        echo "Installing azurelinux-repos-cloud-native"
+        dnf_install 30 1 600 azurelinux-repos-cloud-native
+        dnf_install 30 1 600 azurelinux-repos-cloud-native-preview
+      else
+        echo "Installing mariner-repos-cloud-native"
+        dnf_install 30 1 600 mariner-repos-cloud-native
+      fi
     else
-      echo "Installing mariner-repos-cloud-native"
-      dnf_install 30 1 600 mariner-repos-cloud-native
+      sudo rpm -Uvh https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm
+
+      dnf_update || exit $ERR_APT_UPDATE_TIMEOUT
     fi
 
     dnf_makecache || exit $ERR_APT_UPDATE_TIMEOUT
     dnf_update || exit $ERR_APT_DIST_UPGRADE_TIMEOUT
-    for dnf_package in ca-certificates check-restart cifs-utils cloud-init-azure-kvp conntrack-tools cracklib dnf-automatic ebtables ethtool fuse inotify-tools iotop iproute ipset iptables jq logrotate lsof nmap-ncat nfs-utils pam pigz psmisc rsyslog socat sysstat traceroute util-linux xz zip blobfuse2 nftables iscsi-initiator-utils device-mapper-multipath; do
+    for dnf_package in ca-certificates cifs-utils conntrack-tools cracklib dnf-automatic ebtables ethtool fuse inotify-tools iotop iproute ipset iptables jq logrotate lsof nmap-ncat nfs-utils pam pigz psmisc rsyslog socat sysstat traceroute util-linux xz zip nftables iscsi-initiator-utils device-mapper-multipath wget; do
       if ! dnf_install 30 1 600 $dnf_package; then
         exit $ERR_APT_INSTALL_TIMEOUT
       fi
     done
+
+    if isFedora "$OS"; then
+      sudo yum install fuse3 fuse3-libs blobfuse2 nslookup -y
+      dnf_remove 30 1 600 zram-generator-defaults
+    fi
+
+    if isFedora "$OS"; then
+      makeRepoFile "base"
+      makeRepoFile "cloud-native"
+      makeRepoFile "ms-oss"
+      makeRepoFile "ms-non-oss"
+      dnf_install 30 1 600 kubernetes-cri-tools
+    fi
+
+    if ! isFedora "$OS"; then
+      dnf_install 30 1 600 cloud-init-azure-kvp blobfuse2 check-restart
+    fi
+
 
     # install 2.0 specific packages
     # the blobfuse package is not available in AzureLinux 3.0
@@ -66,6 +90,31 @@ installDeps() {
         systemctl enable apparmor.service
       fi
     fi
+}
+
+makeRepoFile() {
+  reponame=$1
+  local cpu_arch=$(getCPUArch) # Returns amd64 or arm64
+  local repo_arch=""
+
+  if [ "$cpu_arch" = "amd64" ]; then
+    repo_arch="x86_64"
+  elif [ "$cpu_arch" = "arm64" ]; then
+    repo_arch="aarch64"
+  else
+    echo "Unsupported CPU architecture: $cpu_arch"
+    return
+  fi
+  cat << EOF > /etc/yum.repos.d/azurelinux-$reponame.repo
+[azurelinux-official-$reponame]
+name=Azure Linux Official $reponame 3.0 $repo_arch
+baseurl=https://packages.microsoft.com/azurelinux/3.0/prod/$reponame/$repo_arch
+gpgcheck=0
+repo_gpgcheck=0
+enabled=1
+skip_if_unavailable=True
+sslverify=1
+EOF
 }
 
 installKataDeps() {
@@ -241,7 +290,7 @@ installCredentialProviderFromPMC() {
    	PACKAGE_VERSION=""
     getLatestPkgVersionFromK8sVersion "$k8sVersion" "azure-acr-credential-provider-pmc" "$os" "$os_version" "${OS_VARIANT}"
     packageVersion=$(echo $PACKAGE_VERSION | cut -d "-" -f 1)
-	echo "installing azure-acr-credential-provider package version: $packageVersion"
+    echo "installing azure-acr-credential-provider package version: $packageVersion"
     mkdir -p "${CREDENTIAL_PROVIDER_BIN_DIR}"
     chown -R root:root "${CREDENTIAL_PROVIDER_BIN_DIR}"
     installRPMPackageFromFile "azure-acr-credential-provider" "${packageVersion}" || exit $ERR_CREDENTIAL_PROVIDER_DOWNLOAD_TIMEOUT
@@ -536,6 +585,9 @@ installStandaloneContainerd() {
         fi
         if [ "$OS_VERSION" = "3.0" ]; then
             containerdPackageName="containerd2-${desiredVersion}"
+        fi
+        if isFedora "$OS"; then
+          containerdPackageName="containerd"
         fi
 
         # TODO: tie runc to r92 once that's possible on Mariner's pkg repo and if we're still using v1.linux shim

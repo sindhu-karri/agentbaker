@@ -48,7 +48,7 @@ elif [ "$OS_SKU" = "Flatcar" ]; then
 elif [ "$OS_SKU" = "AzureLinuxOSGuard" ]; then
   SKIP_GIT_CLONE=true
 else
-  sudo tdnf install -y git
+  sudo dnf install -y git
 fi
 
 if [ "$SKIP_GIT_CLONE" = "true" ]; then
@@ -207,6 +207,8 @@ testPackagesInstalled() {
     elif [ "$OS_SKU" = "AzureLinuxOSGuard" ]; then
       OS=$AZURELINUX_OS_NAME
       OS_VARIANT=OSGUARD
+    elif [ "$OS_SKU" = "Fedora" ]; then
+      OS="FEDORA"
     else
       OS=${OS_SKU^^}
     fi
@@ -528,7 +530,7 @@ testChrony() {
   #test chrony is running
   #if mariner/azurelinux check chronyd, else check chrony
   os_chrony="chrony"
-  if [ "$os_sku" = "CBLMariner" ] || [ "$os_sku" = "AzureLinux" ] || [ "$os_sku" = "AzureLinuxOSGuard" ] || [ "$os_sku" = "Flatcar" ]; then
+  if [ "$os_sku" = "CBLMariner" ] || [ "$os_sku" = "AzureLinux" ] || [ "$os_sku" = "AzureLinuxOSGuard" ] || [ "$os_sku" = "Flatcar" ] || [ "$os_sku" = "Fedora" ]; then
     os_chrony="chronyd"
   fi
   status=$(systemctl show -p SubState --value $os_chrony)
@@ -775,7 +777,7 @@ testCloudInit() {
   os_sku=$1
 
   # Limit this test only to non-cvm Mariner or Azurelinux
-  if ! echo "$FEATURE_FLAGS" | grep -q "cvm" && { [ "$os_sku" = "CBLMariner" ] || [ "$os_sku" = "AzureLinux" ]; }; then
+  if ! echo "$FEATURE_FLAGS" | grep -q "cvm" && { [ "$os_sku" = "CBLMariner" ] || [ "$os_sku" = "AzureLinux" ] || [ "$os_sku" = "Fedora" ]; }; then
     echo "Checking if cloud-init.log exists..."
     FILE=/var/log/cloud-init.log
     if test -f "$FILE"; then
@@ -929,6 +931,11 @@ testPkgDownloaded() {
         err $test "Package ${packageName}_${packageVersion} does not exist, content of downloads dir is $(ls -al ${downloadLocation})"
       fi
     elif [ $OS = $AZURELINUX_OS_NAME ] && [ $OS_VERSION = "3.0" ]; then
+      rpmFile=$(find "${downloadLocation}" -maxdepth 1 -name "${packageName}-${packageVersion}*" -print -quit 2>/dev/null) || rpmFile=""
+      if [ -z "${rpmFile}" ]; then
+        err $test "Package ${packageName}-${packageVersion} does not exist, content of downloads dir is $(ls -al ${downloadLocation})"
+      fi
+    elif [ $OS = "FEDORA" ]; then
       rpmFile=$(find "${downloadLocation}" -maxdepth 1 -name "${packageName}-${packageVersion}*" -print -quit 2>/dev/null) || rpmFile=""
       if [ -z "${rpmFile}" ]; then
         err $test "Package ${packageName}-${packageVersion} does not exist, content of downloads dir is $(ls -al ${downloadLocation})"
@@ -1207,7 +1214,7 @@ testPamDSettings() {
 
   # We only want to run this test on Mariner/AzureLinux
   # So if it's anything else, report that we're skipping the test and bail.
-  if [ "${os_sku}" != "CBLMariner" ] && [ "${os_sku}" != "AzureLinux" ]; then
+  if [ "${os_sku}" != "CBLMariner" ] && [ "${os_sku}" != "AzureLinux" ] && [ "${os_sku}" != "Fedora" ]; then
     echo "$test: Skipping test on ${os_sku} ${os_version}"
   else
 
@@ -1399,7 +1406,7 @@ testPam() {
 
   # We only want to run this test on Mariner/AzureLinux
   # So if it's anything else, report that we're skipping the test and bail.
-  if [ "${os_sku}" != "CBLMariner" ] && [ "${os_sku}" != "AzureLinux" ]; then
+  if [ "${os_sku}" != "CBLMariner" ] && [ "${os_sku}" != "AzureLinux" ] && [ "${os_sku}" != "Fedora" ]; then
     echo "$test: Skipping test on ${os_sku} ${os_version}"
   else
     # cd to the directory of the script

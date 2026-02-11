@@ -214,7 +214,9 @@ if isMarinerOrAzureLinux "$OS" && ! isAzureLinuxOSGuard "$OS" "$OS_VARIANT"; the
     fi
     disableTimesyncd
     disableDNFAutomatic
-    enableCheckRestart
+    if ! isFedora "$OS"; then
+      enableCheckRestart
+    fi
     activateNfConntrack
 elif [ "${OS}" = "${UBUNTU_OS_NAME}" ]; then
   updateAptWithMicrosoftPkg
@@ -279,6 +281,12 @@ downloadAndInstallCriTools() {
   downloadDir=${1}
   evaluatedURL=${2}
   version=${3}
+
+  if isFedora "$OS"; then
+    echo "Installing critools from package repos"
+    dnf_install 30 1 600 cri-tools || exit $ERR_CRICTL_DOWNLOAD_TIMEOUT
+    return 0
+  fi
 
   # if downloadDir and evaluatedURL are not empty, download and install crictl by this override, which is the old way to install
   if [ ! -z "${downloadDir}" ] && [ ! -z "${evaluatedURL}" ]; then
@@ -504,11 +512,14 @@ fi
 
 capture_benchmark "${SCRIPT_NAME}_install_artifact_streaming"
 
+systemctlEnableAndStart containerd 30 || exit $ERR_SYSTEMCTL_START_FAIL
+
 # k8s will use images in the k8s.io namespaces - create it
 ctr namespace create k8s.io
 cliTool="ctr"
 
 INSTALLED_RUNC_VERSION=$(runc --version | head -n1 | sed 's/runc version //')
+echo "${PIPESTATUS[@]}"
 echo "  - runc version ${INSTALLED_RUNC_VERSION}" >> ${VHD_LOGS_FILEPATH}
 capture_benchmark "${SCRIPT_NAME}_install_crictl"
 
@@ -712,7 +723,9 @@ capture_benchmark "${SCRIPT_NAME}_pin_pod_sandbox_image"
 
 # IPv6 nftables rules are only available on Ubuntu or Mariner/AzureLinux
 if [ $OS = $UBUNTU_OS_NAME ] || isMarinerOrAzureLinux "$OS"; then
-  systemctlEnableAndStart ipv6_nftables 30 || exit 1
+  if ! isFedora "$OS"; then
+    systemctlEnableAndStart ipv6_nftables 30 || exit 1
+  fi
 fi
 
 mkdir -p /var/log/azure/Microsoft.Azure.Extensions.CustomScript/events
@@ -726,9 +739,11 @@ fi
 
 CGROUP_VERSION=$(stat -fc %T /sys/fs/cgroup)
 if [ "$CGROUP_VERSION" = "cgroup2fs" ]; then
-  systemctlEnableAndStart cgroup-pressure-telemetry.timer 30 || exit 1
-  systemctl enable cgroup-pressure-telemetry.service || exit 1
-  systemctl restart cgroup-pressure-telemetry.service
+  if ! isFedora "$OS"; then
+    systemctlEnableAndStart cgroup-pressure-telemetry.timer 30 || exit 1
+    systemctl enable cgroup-pressure-telemetry.service || exit 1
+    systemctl restart cgroup-pressure-telemetry.service
+  fi
 fi
 
 if [ -d "/var/log/azure/Microsoft.Azure.Extensions.CustomScript/events/" ] && [ "$(ls -A /var/log/azure/Microsoft.Azure.Extensions.CustomScript/events/)" ]; then
@@ -892,6 +907,28 @@ if [ -n "${PRIVATE_PACKAGES_URL:-}" ]; then
     echo "download kube package from ${private_url}"
     cacheKubePackageFromPrivateUrl "$private_url"
   done
+fi
+
+
+# disable Write files module for fedora
+updateCloudCfg() {
+  if isFedora "$OS"; then
+    echo "Disabling Write files module in cloud-init for Fedora"
+    CLOUD_CFG_FILE="/etc/cloud/cloud.cfg"
+    if [ -f "$CLOUD_CFG_FILE" ]; then
+      sed -i 's/- write_files/# - write_files/g' "$CLOUD_CFG_FILE"
+    else
+      echo "Warning: $CLOUD_CFG_FILE not found, skipping Write files module disablement"
+    fi
+  fi
+}
+
+updateCloudCfg
+
+# If Fedora, Disable swap to match kubelet expectations
+if isFedora "$OS"; then
+  echo "Disabling swap for Fedora"
+  swapoff -a
 fi
 
 LOCALDNS_BINARY_PATH="/opt/azure/containers/localdns/binary"

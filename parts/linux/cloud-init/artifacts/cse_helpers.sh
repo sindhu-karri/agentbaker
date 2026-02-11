@@ -172,6 +172,7 @@ fi
 
 UBUNTU_OS_NAME="UBUNTU"
 MARINER_OS_NAME="MARINER"
+FEDORA_OS_NAME="FEDORA"
 MARINER_KATA_OS_NAME="MARINERKATA"
 AZURELINUX_KATA_OS_NAME="AZURELINUXKATA"
 AZURELINUX_OS_NAME="AZURELINUX"
@@ -778,8 +779,8 @@ should_enable_managed_gpu_experience() {
 }
 
 isMarinerOrAzureLinux() {
-    local os=${1-$OS}
-    if [ "$os" = "$MARINER_OS_NAME" ] || [ "$os" = "$MARINER_KATA_OS_NAME" ] || [ "$os" = "$AZURELINUX_OS_NAME" ] || [ "$os" = "$AZURELINUX_KATA_OS_NAME" ]; then
+    local os=$1
+    if [ "$os" = "$MARINER_OS_NAME" ] || [ "$os" = "$MARINER_KATA_OS_NAME" ] || [ "$os" = "$AZURELINUX_OS_NAME" ] || [ "$os" = "$AZURELINUX_KATA_OS_NAME" ] || [ "$os" = "$FEDORA_OS_NAME" ]; then
         return 0
     fi
     return 1
@@ -805,6 +806,14 @@ isMariner() {
 isAzureLinux() {
     local os=${1-$OS}
     if [ "$os" = "$AZURELINUX_OS_NAME" ] || [ "$os" = "$AZURELINUX_KATA_OS_NAME" ]; then
+        return 0
+    fi
+    return 1
+}
+
+isFedora() {
+    local os=$1
+    if [ "$os" = "$FEDORA_OS_NAME" ]; then
         return 0
     fi
     return 1
@@ -843,7 +852,7 @@ installJq() {
         return 0
     fi
     if isMarinerOrAzureLinux "$OS"; then
-        sudo tdnf install -y jq && echo "jq was installed: $(jq --version)"
+        dnf_install 5 1 60 jq && echo "jq was installed: $(jq --version)"
     else
         apt_get_install 5 1 60 jq && echo "jq was installed: $(jq --version)"
     fi
