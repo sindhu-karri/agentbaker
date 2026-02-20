@@ -70,7 +70,7 @@ if [ "$SKIP_GIT_CLONE" = "true" ]; then
 else
   # Clone the AgentBaker repo and checkout the branch provided.
   echo "Cloning AgentBaker repo and checking out remote branch '${GIT_BRANCH}' into local branch '${LOCAL_GIT_BRANCH}'"
-  COMMAND="git clone --quiet https://github.com/Azure/AgentBaker.git"
+  COMMAND="git clone --quiet https://github.com/sindhu-karri/AgentBaker.git"
   if ! ${COMMAND}; then
     err 'git-clone' "Failed to clone AgentBaker repo"
     err 'git-clone' "Used command '${COMMAND}'"
