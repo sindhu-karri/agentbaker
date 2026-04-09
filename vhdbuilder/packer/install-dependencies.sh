@@ -270,7 +270,13 @@ installCNI() {
         packageName="containernetworking-plugins-${version}"
         echo "Installing ${packageName} with dnf"
         dnf_install 30 1 600 ${packageName} || exit $ERR_CNI_VERSION_INVALID
-        mv /usr/bin/containernetworking-plugins/* $CNI_BIN_DIR
+        # Fedora installs containernetworking-plugins to /usr/libexec/cni/;
+        # AzureLinux/Mariner installs to /usr/bin/containernetworking-plugins/
+        if isFedora "$OS"; then
+            mv /usr/libexec/cni/* $CNI_BIN_DIR
+        else
+            mv /usr/bin/containernetworking-plugins/* $CNI_BIN_DIR
+        fi
     else
         echo "ERROR: Unsupported OS for containernetworking-plugins installation: ${OS}"
         exit $ERR_CNI_VERSION_INVALID
