@@ -1258,6 +1258,16 @@
             ]
           }
         },
+        "fedora": {
+          "v43": {
+            "versionsV2": [
+              {
+                "renovateTag": "<DO_NOT_UPDATE>",
+                "latestVersion": "1.8.0"
+              }
+            ]
+          }
+        },
         "flatcar": {
           "current": {
             "versionsV2": [
