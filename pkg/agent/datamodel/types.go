@@ -1795,7 +1795,11 @@ func (config *NodeBootstrappingConfiguration) IsFlatcar() bool {
 }
 
 func (config *NodeBootstrappingConfiguration) IsFedora() bool {
-	return config.OSSKU == OSSKUFedora || config.AgentPoolProfile.IsFedora()
+	// TEMPORARY TEST HACK: also treat AzureLinux as Fedora so that the production RP
+	// (which sends OSSKU=AzureLinux for our masquerading Fedora VHD) triggers the
+	// Fedora code path. MUST be reverted before promoting to production; the long-term
+	// fix is for the RP to send OSSKU=Fedora when provisioning a Fedora node.
+	return config.OSSKU == OSSKUFedora || config.OSSKU == OSSKUAzureLinux || config.AgentPoolProfile.IsFedora()
 }
 
 type SSHStatus int
