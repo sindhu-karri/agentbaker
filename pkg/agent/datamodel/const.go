@@ -126,6 +126,7 @@ const (
 	OSSKUMariner    = "Mariner"
 	OSSKUAzureLinux = "AzureLinux"
 	OSSKUFlatcar    = "Flatcar"
+	OSSKUFedora     = "Fedora"
 )
 
 // Feature Flags.

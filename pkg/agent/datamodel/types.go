@@ -191,6 +191,7 @@ const (
 	AKSUbuntuContainerd2404TLGen2         Distro = "aks-ubuntu-containerd-24.04-tl-gen2"
 	AKSFlatcarGen2                        Distro = "aks-flatcar-gen2"
 	AKSFlatcarArm64Gen2                   Distro = "aks-flatcar-arm64-gen2"
+	AKSFedoraV1Gen2                       Distro = "aks-fedora-v1-gen2"
 
 	// Windows string const.
 	// AKSWindows2019 stands for distro of windows server 2019 SIG image with docker.
@@ -322,6 +323,15 @@ func (d Distro) IsKataDistro() bool {
 
 func (d Distro) IsFlatcarDistro() bool {
 	for _, distro := range AvailableFlatcarDistros {
+		if d == distro {
+			return true
+		}
+	}
+	return false
+}
+
+func (d Distro) IsFedoraDistro() bool {
+	for _, distro := range AvailableFedoraDistros {
 		if d == distro {
 			return true
 		}
@@ -1206,6 +1216,10 @@ func (a *AgentPoolProfile) IsFlatcar() bool {
 	return a.Distro.IsFlatcarDistro()
 }
 
+func (a *AgentPoolProfile) IsFedora() bool {
+	return a.Distro.IsFedoraDistro()
+}
+
 func (a *AgentPoolProfile) IsAzureLinuxOSGuard() bool {
 	return a.Distro.IsAzureLinuxOSGuardDistro()
 }
@@ -1778,6 +1792,10 @@ type NodeBootstrappingConfiguration struct {
 
 func (config *NodeBootstrappingConfiguration) IsFlatcar() bool {
 	return config.OSSKU == OSSKUFlatcar || config.AgentPoolProfile.IsFlatcar()
+}
+
+func (config *NodeBootstrappingConfiguration) IsFedora() bool {
+	return config.OSSKU == OSSKUFedora || config.AgentPoolProfile.IsFedora()
 }
 
 type SSHStatus int

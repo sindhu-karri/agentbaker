@@ -18,7 +18,14 @@ write_files:
     {{GetVariableProperty "cloudInitData" "provisionSource"}}
 
 
-{{if IsMariner}}
+{{if IsFedora}}
+- path: {{GetCSEHelpersScriptDistroFilepath}}
+  permissions: "0744"
+  encoding: gzip
+  owner: root
+  content: !!binary |
+    {{GetVariableProperty "cloudInitData" "provisionSourceFedora"}}
+{{- else if IsMariner}}
 - path: {{GetCSEHelpersScriptDistroFilepath}}
   permissions: "0744"
   encoding: gzip
@@ -78,7 +85,14 @@ write_files:
   content: !!binary |
     {{GetVariableProperty "cloudInitData" "provisionSendLogs"}}
 
-{{if IsMariner}}
+{{if IsFedora}}
+- path: {{GetCSEInstallScriptDistroFilepath}}
+  permissions: "0744"
+  encoding: gzip
+  owner: root
+  content: !!binary |
+    {{GetVariableProperty "cloudInitData" "provisionInstallsFedora"}}
+{{- else if IsMariner}}
 - path: {{GetCSEInstallScriptDistroFilepath}}
   permissions: "0744"
   encoding: gzip

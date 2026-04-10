@@ -115,6 +115,7 @@ var AvailableContainerdDistros = []Distro{
 	AKSUbuntuFipsContainerd2204Gen2,
 	AKSFlatcarGen2,
 	AKSFlatcarArm64Gen2,
+	AKSFedoraV1Gen2,
 	AKSCBLMarinerV1,
 	AKSCBLMarinerV2,
 	AKSAzureLinuxV2,
@@ -257,6 +258,11 @@ var AvailableAzureLinuxOSGuardDistros = []Distro{
 var AvailableFlatcarDistros = []Distro{
 	AKSFlatcarGen2,
 	AKSFlatcarArm64Gen2,
+}
+
+//nolint:gochecknoglobals
+var AvailableFedoraDistros = []Distro{
+	AKSFedoraV1Gen2,
 }
 
 // IsContainerdSKU returns true if distro type is containerd-enabled.
