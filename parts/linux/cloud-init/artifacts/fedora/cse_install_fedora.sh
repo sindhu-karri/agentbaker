@@ -283,22 +283,31 @@ EOF
 }
 
 installCredentialProviderFromPMC() {
-    k8sVersion="${1:-}"
-    os=${AZURELINUX_OS_NAME}
-    if [ -z "$OS_VERSION" ]; then
-        os=${OS}
-        os_version="current"
-    else
-        os_version="${OS_VERSION}"
+    local k8sVersion="${1:-}"
+    # On Fedora, AzureLinux (.azl3) RPMs are not available in Fedora's repos and
+    # dnf5 does not support --downloaddir used by the fallback download path.
+    # Use the pre-cached OCI tarball from /opt/credentialprovider/downloads/ instead.
+    PACKAGE_VERSION=""
+    getLatestPkgVersionFromK8sVersion "$k8sVersion" "azure-acr-credential-provider" "default" "current" ""
+    local tarballVersion="${PACKAGE_VERSION}"
+    if [ -z "$tarballVersion" ]; then
+        echo "Failed to find azure-acr-credential-provider tarball version for k8s ${k8sVersion}"
+        exit $ERR_CREDENTIAL_PROVIDER_DOWNLOAD_TIMEOUT
     fi
-   	PACKAGE_VERSION=""
-    getLatestPkgVersionFromK8sVersion "$k8sVersion" "azure-acr-credential-provider-pmc" "$os" "$os_version" "${OS_VARIANT}"
-    packageVersion=$(echo $PACKAGE_VERSION | cut -d "-" -f 1)
-    echo "installing azure-acr-credential-provider package version: $packageVersion"
-    mkdir -p "${CREDENTIAL_PROVIDER_BIN_DIR}"
+    local tarballFile="azure-acr-credential-provider-linux-${CPU_ARCH}-${tarballVersion}.tar.gz"
+    local tarballPath="${CREDENTIAL_PROVIDER_DOWNLOAD_DIR}/${tarballFile}"
+    mkdir -p "${CREDENTIAL_PROVIDER_BIN_DIR}" "${CREDENTIAL_PROVIDER_DOWNLOAD_DIR}"
     chown -R root:root "${CREDENTIAL_PROVIDER_BIN_DIR}"
-    installRPMPackageFromFile "azure-acr-credential-provider" "${packageVersion}" || exit $ERR_CREDENTIAL_PROVIDER_DOWNLOAD_TIMEOUT
-    ln -snf /usr/bin/azure-acr-credential-provider "$CREDENTIAL_PROVIDER_BIN_DIR/acr-credential-provider"
+    if [ ! -f "${tarballPath}" ]; then
+        echo "Pre-cached tarball ${tarballFile} not found; downloading from MCR"
+        CREDENTIAL_PROVIDER_DOWNLOAD_URL="mcr.microsoft.com/oss/binaries/kubernetes/azure-acr-credential-provider:${tarballVersion}-linux-${CPU_ARCH}"
+        CREDENTIAL_PROVIDER_TGZ_TMP="${tarballFile}"
+        downloadCredentialProvider
+    fi
+    echo "Installing azure-acr-credential-provider ${tarballVersion} from tarball"
+    extract_tarball "${tarballPath}" "${CREDENTIAL_PROVIDER_DOWNLOAD_DIR}"
+    mv "${CREDENTIAL_PROVIDER_DOWNLOAD_DIR}/azure-acr-credential-provider" "${CREDENTIAL_PROVIDER_BIN_DIR}/acr-credential-provider"
+    chmod 755 "${CREDENTIAL_PROVIDER_BIN_DIR}/acr-credential-provider"
 }
 
   getPackageCacheRoot() {
